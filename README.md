@@ -39,7 +39,7 @@ DB_CONFIG = {
 2. Run the main script ``excel_analyzer.py`` to start the processing:
 
 ```bash
-python excel_analyzer.py
+python mono_thread.py
 ```
 
 The script will process each Excel file found in the ``uploads`` directory, display a progress bar for each file, and insert the data into the database.
