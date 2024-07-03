@@ -43,3 +43,5 @@ python excel_analyzer.py
 ```
 
 The script will process each Excel file found in the ``uploads`` directory, display a progress bar for each file, and insert the data into the database.
+
+Mono thread : 27.95 secondes

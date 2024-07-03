@@ -1,0 +1,34 @@
+Nombre d'étudiants ayant donné leur feedback : 100
+
+Nombre de feedbacks positifs : 45
+Nombre de feedbacks négatifs : 27
+Nombre de feedbacks neutres : 28
+
+Liste des feedbacks négatifs :
+1. Feedback : Boring lectures.
+2. Feedback : Boring lectures.
+3. Feedback : Too difficult.
+4. Feedback : Too difficult.
+5. Feedback : Boring lectures.
+6. Feedback : Too difficult.
+7. Feedback : Boring lectures.
+8. Feedback : Boring lectures.
+9. Feedback : Boring lectures.
+10. Feedback : Boring lectures.
+11. Feedback : Too difficult.
+12. Feedback : Boring lectures.
+13. Feedback : Too difficult.
+14. Feedback : Too difficult.
+15. Feedback : Too difficult.
+16. Feedback : Too difficult.
+17. Feedback : Boring lectures.
+18. Feedback : Too difficult.
+19. Feedback : Too difficult.
+20. Feedback : Boring lectures.
+21. Feedback : Boring lectures.
+22. Feedback : Too difficult.
+23. Feedback : Too difficult.
+24. Feedback : Boring lectures.
+25. Feedback : Boring lectures.
+26. Feedback : Too difficult.
+27. Feedback : Boring lectures.
