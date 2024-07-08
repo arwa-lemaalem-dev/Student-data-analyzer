@@ -4,7 +4,7 @@ import os
 from textblob import TextBlob
 from tqdm import tqdm
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed, wait
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Spécifiez explicitement le chemin de Tesseract OCR
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lemaa\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
@@ -24,7 +24,6 @@ def extract_feedback_data(image_path):
     except Exception as e:
         print(f"Erreur lors de l'extraction du texte pour {image_path}: {e}")
         extracted_text = ""
-    
     return extracted_text
 
 def analyze_feedback(feedback_text):
@@ -32,7 +31,6 @@ def analyze_feedback(feedback_text):
     blob = TextBlob(feedback_text)
     sentiment = blob.sentiment.polarity
     sentiment_label = "positif" if sentiment > 0 else "négatif" if sentiment < 0 else "neutre"
-    
     return sentiment_label, sentiment
 
 def generate_report_summary(student_feedbacks):
@@ -73,7 +71,7 @@ def generate_report_summary(student_feedbacks):
     with open(report_path, 'w', encoding='utf-8') as file:
         file.write(report_content)
 
-def process_feedback_image(image_path, thread_pbar):
+def process_feedback_image(image_path):
     # Extraire les données du formulaire
     extracted_text = extract_feedback_data(image_path)
     
@@ -88,9 +86,6 @@ def process_feedback_image(image_path, thread_pbar):
     
     # Analyser le feedback pour obtenir le sentiment
     sentiment_label, sentiment_score = analyze_feedback(feedback)
-    
-    # Mise à jour de la barre de progression du thread
-    thread_pbar.update(1)
     
     # Retourner les données du feedback
     return student_name, feedback, sentiment_label
@@ -108,20 +103,10 @@ def process_feedback_forms_multithread():
     # Utilisation de tqdm pour la barre de progression
     with tqdm(total=len(image_paths), desc='Traitement des formulaires') as pbar:
         
-        # Liste pour stocker les barres de progression des threads
-        thread_pbars = []
-        
-        # Fonction pour traiter une image de formulaire
-        def process_image(image_path, thread_pbar):
-            return process_feedback_image(image_path, thread_pbar)
-        
         # Utilisation de ThreadPoolExecutor pour exécuter les traitements en parallèle
         with ThreadPoolExecutor(max_workers=4) as executor:
-            for image_path in image_paths:
-                thread_pbar = tqdm(total=1, desc=f'Thread {os.path.basename(image_path)}')
-                thread_pbars.append(thread_pbar)
-                futures = executor.submit(process_image, image_path, thread_pbar)
-                
+            futures = [executor.submit(process_feedback_image, image_path) for image_path in image_paths]
+            
             # Attendre la fin de tous les threads et récupérer les résultats
             for future in as_completed(futures):
                 student_name, feedback, sentiment_label = future.result()
@@ -130,11 +115,7 @@ def process_feedback_forms_multithread():
                     'feedback': feedback,
                     'sentiment_label': sentiment_label
                 }
-    
-    # Mettre à jour la barre de progression globale
-    for thread_pbar in thread_pbars:
-        pbar.update(1)
-        thread_pbar.close()
+                pbar.update(1)
     
     # Générer le rapport récapitulatif
     generate_report_summary(student_feedbacks)

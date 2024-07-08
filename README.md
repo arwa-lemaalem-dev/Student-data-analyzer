@@ -16,12 +16,23 @@ Before you begin, make sure you have the following installed:
 
 1. Place your images files to analyze in the `uploads` directory.
 
-2. Run the main script ``mono_thread.py`` to start the processing:
+2. Run genrate images 
 
 ```bash
-python mono_thread.py
+python generate_feedback_files.py
 ```
 
-The script will process each Excel file found in the ``uploads`` directory, display a progress bar for each file, and insert the data into the database.
+3. Run : 
+   *  Run the main script ``mono_thread.py`` to start the processing:
+    ```bash
+    python mono_thread.py
+    ```
+   *  Run the main script ``multi_threads.py`` to start the processing:
+    ```bash
+    python multi_threads.py
+    ```
 
-Mono thread : 27.95 secondes
+
+<br><br>
+* Mono thread : 27.95 secondes
+* Multi threads : 11.33 secondes
