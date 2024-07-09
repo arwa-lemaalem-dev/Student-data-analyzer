@@ -5,6 +5,7 @@ from textblob import TextBlob
 from tqdm import tqdm
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # Spécifiez explicitement le chemin de Tesseract OCR
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lemaa\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
@@ -16,6 +17,9 @@ REPORTS_FOLDER = 'reports'
 # Création des dossiers 'uploads' et 'reports' s'ils n'existent pas
 os.makedirs(UPLOADS_FOLDER, exist_ok=True)
 os.makedirs(REPORTS_FOLDER, exist_ok=True)
+
+# Initialisation du sémaphore avec une limite de 4 threads
+semaphore = threading.Semaphore(8)
 
 def extract_feedback_data(image_path):
     # Utilisation de pytesseract pour OCR l'image et extraire le texte
@@ -90,7 +94,11 @@ def process_feedback_image(image_path):
     # Retourner les données du feedback
     return student_name, feedback, sentiment_label
 
-def process_feedback_forms_multithread():
+def process_feedback_image_semaphore(image_path):
+    with semaphore:
+        return process_feedback_image(image_path)
+
+def process_feedback_forms_multithread_with_semaphore():
     # Liste des chemins pour les images générées
     image_paths = [os.path.join(UPLOADS_FOLDER, filename) for filename in os.listdir(UPLOADS_FOLDER) if filename.endswith('.jpg')]
     
@@ -104,8 +112,8 @@ def process_feedback_forms_multithread():
     with tqdm(total=len(image_paths), desc='Traitement des formulaires') as pbar:
         
         # Utilisation de ThreadPoolExecutor pour exécuter les traitements en parallèle
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = [executor.submit(process_feedback_image, image_path) for image_path in image_paths]
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            futures = [executor.submit(process_feedback_image_semaphore, image_path) for image_path in image_paths]
             
             # Attendre la fin de tous les threads et récupérer les résultats
             for future in as_completed(futures):
@@ -126,4 +134,4 @@ def process_feedback_forms_multithread():
     print(f"Temps d'exécution total : {execution_time:.2f} secondes")
 
 # Appel de la fonction multithread pour traiter les formulaires
-process_feedback_forms_multithread()
+process_feedback_forms_multithread_with_semaphore()

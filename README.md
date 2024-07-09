@@ -34,5 +34,5 @@ python generate_feedback_files.py
 
 
 <br><br>
-* Mono thread : 27.95 secondes
-* Multi threads : 11.33 secondes
+* Mono thread : 25.81 secondes
+* Multi threads : 10.62 secondes
