@@ -56,7 +56,7 @@ feedbacks = [
 ]
 signatures = [True, False]
 
-for i in range(100):
+for i in range(20):
     student_name = fake.name()
     feedback = random.choice(feedbacks)
     signed = random.choice(signatures)

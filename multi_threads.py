@@ -4,25 +4,24 @@ import os
 from textblob import TextBlob
 from tqdm import tqdm
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 import threading
+import queue
 
-# Spécifiez explicitement le chemin de Tesseract OCR
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lemaa\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
 
-# Définition des chemins et dossiers
 UPLOADS_FOLDER = 'uploads'
 REPORTS_FOLDER = 'reports'
 
-# Création des dossiers 'uploads' et 'reports' s'ils n'existent pas
-os.makedirs(UPLOADS_FOLDER, exist_ok=True)
-os.makedirs(REPORTS_FOLDER, exist_ok=True)
+# Initialization of the queue
+image_queue = queue.Queue()
 
-# Initialisation du sémaphore avec une limite de 4 threads
-semaphore = threading.Semaphore(8)
+student_feedbacks = {}
+
+# synchronize access to the feedback dictionary
+feedbacks_lock = threading.Lock()
 
 def extract_feedback_data(image_path):
-    # Utilisation de pytesseract pour OCR l'image et extraire le texte
     try:
         extracted_text = pytesseract.image_to_string(Image.open(image_path))
     except Exception as e:
@@ -31,25 +30,18 @@ def extract_feedback_data(image_path):
     return extracted_text
 
 def analyze_feedback(feedback_text):
-    # Analyse de sentiment avec TextBlob
     blob = TextBlob(feedback_text)
     sentiment = blob.sentiment.polarity
     sentiment_label = "positif" if sentiment > 0 else "négatif" if sentiment < 0 else "neutre"
     return sentiment_label, sentiment
 
 def generate_report_summary(student_feedbacks):
-    # Compter le nombre total d'étudiants ayant donné leur feedback
     total_students = len(student_feedbacks)
-    
-    # Initialiser les compteurs de feedbacks
     positive_count = 0
     negative_count = 0
     neutral_count = 0
-    
-    # Liste des feedbacks négatifs
     negative_feedbacks = []
     
-    # Analyser chaque feedback
     for feedback in student_feedbacks.values():
         if feedback['sentiment_label'] == 'positif':
             positive_count += 1
@@ -59,7 +51,6 @@ def generate_report_summary(student_feedbacks):
         elif feedback['sentiment_label'] == 'neutre':
             neutral_count += 1
     
-    # Construction du contenu du rapport
     report_content = f"Nombre d'étudiants ayant donné leur feedback : {total_students}\n\n"
     report_content += f"Nombre de feedbacks positifs : {positive_count}\n"
     report_content += f"Nombre de feedbacks négatifs : {negative_count}\n"
@@ -70,68 +61,75 @@ def generate_report_summary(student_feedbacks):
         for index, feedback in enumerate(negative_feedbacks, start=1):
             report_content += f"{index}. {feedback}\n"
     
-    # Sauvegarde du rapport dans un fichier texte
     report_path = os.path.join(REPORTS_FOLDER, 'summary_report.txt')
     with open(report_path, 'w', encoding='utf-8') as file:
         file.write(report_content)
 
 def process_feedback_image(image_path):
-    # Extraire les données du formulaire
     extracted_text = extract_feedback_data(image_path)
-    
-    # Traiter les données extraites pour obtenir le nom de l'étudiant et le feedback
     lines = extracted_text.splitlines()
     if len(lines) >= 2:
-        student_name = lines[0].strip()  # Supposons que le nom de l'étudiant est la première ligne
-        feedback = lines[1].strip()      # Supposons que le feedback est la deuxième ligne
+        student_name = lines[0].strip()
+        feedback = lines[1].strip()
     else:
         student_name = "Nom non trouvé"
         feedback = "Feedback non trouvé"
     
-    # Analyser le feedback pour obtenir le sentiment
     sentiment_label, sentiment_score = analyze_feedback(feedback)
     
-    # Retourner les données du feedback
-    return student_name, feedback, sentiment_label
+    with feedbacks_lock:
+        student_feedbacks[student_name] = {
+            'feedback': feedback,
+            'sentiment_label': sentiment_label
+        }
 
-def process_feedback_image_semaphore(image_path):
-    with semaphore:
-        return process_feedback_image(image_path)
+def producer(image_paths, producer_pbar):
+    for image_path in image_paths:
+        image_queue.put(image_path)
+        producer_pbar.update(1)
+    producer_pbar.close()
 
-def process_feedback_forms_multithread_with_semaphore():
-    # Liste des chemins pour les images générées
-    image_paths = [os.path.join(UPLOADS_FOLDER, filename) for filename in os.listdir(UPLOADS_FOLDER) if filename.endswith('.jpg')]
-    
-    # Dictionnaire pour stocker les feedbacks par étudiant
-    student_feedbacks = {}
-    
-    # Mesurer le temps d'exécution total
+def consumer(consumer_id, total_images):
+    consumer_pbar = tqdm(total=total_images, desc=f'Consommateur {consumer_id}')
+    while not image_queue.empty():
+        image_path = image_queue.get()
+        process_feedback_image(image_path)
+        consumer_pbar.update(1)
+        image_queue.task_done()
+    consumer_pbar.close()
+
+def process_feedback_forms_producer_consumer():
+    print("=== Mode d'exécution : Producteur/Consommateur ===")
     start_time = time.time()
     
-    # Utilisation de tqdm pour la barre de progression
-    with tqdm(total=len(image_paths), desc='Traitement des formulaires') as pbar:
-        
-        # Utilisation de ThreadPoolExecutor pour exécuter les traitements en parallèle
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = [executor.submit(process_feedback_image_semaphore, image_path) for image_path in image_paths]
-            
-            # Attendre la fin de tous les threads et récupérer les résultats
-            for future in as_completed(futures):
-                student_name, feedback, sentiment_label = future.result()
-                # Stocker le feedback dans le dictionnaire par étudiant
-                student_feedbacks[student_name] = {
-                    'feedback': feedback,
-                    'sentiment_label': sentiment_label
-                }
-                pbar.update(1)
+    image_paths = [os.path.join(UPLOADS_FOLDER, filename) for filename in os.listdir(UPLOADS_FOLDER) if filename.endswith('.jpg')]
+    total_images = len(image_paths)
     
-    # Générer le rapport récapitulatif
+    producer_pbar = tqdm(total=total_images, desc='Producteur')
+    
+    # Initialization of producer threads
+    producer_thread = threading.Thread(target=producer, args=(image_paths, producer_pbar))
+    producer_thread.start()
+    
+    # Initialization of consumer threads
+    consumer_threads = []
+    num_consumers = 4  
+    for i in range(num_consumers):
+        t = threading.Thread(target=consumer, args=(i + 1, total_images // num_consumers))
+        consumer_threads.append(t)
+        t.start()
+    
+    # Wait until the producer finished
+    producer_thread.join()
+    
+    # Wait until all consumers finish
+    for t in consumer_threads:
+        t.join()
+    
     generate_report_summary(student_feedbacks)
     
-    # Afficher le temps d'exécution total
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Temps d'exécution total : {execution_time:.2f} secondes")
 
-# Appel de la fonction multithread pour traiter les formulaires
-process_feedback_forms_multithread_with_semaphore()
+process_feedback_forms_producer_consumer()

@@ -68,11 +68,13 @@ def generate_report_summary(student_feedbacks):
             report_content += f"{index}. {feedback}\n"
     
     # Sauvegarde du rapport dans un fichier texte
-    report_path = os.path.join(REPORTS_FOLDER, 'summary_report.txt')
+    report_path = os.path.join(REPORTS_FOLDER, 'summary_report_mono.txt')
     with open(report_path, 'w', encoding='utf-8') as file:
         file.write(report_content)
 
 def process_feedback_forms_monothread():
+    print("=== Mode d'exécution : Monothread ===")
+    
     # Dictionnaire pour stocker les feedbacks par étudiant
     student_feedbacks = {}
     
