@@ -1,9 +1,0 @@
-Nombre d'étudiants ayant donné leur feedback : 20
-
-Nombre de feedbacks positifs : 12
-Nombre de feedbacks négatifs : 2
-Nombre de feedbacks neutres : 6
-
-Liste des feedbacks négatifs :
-1. Feedback : Too difficult.
-2. Feedback : Boring lectures.

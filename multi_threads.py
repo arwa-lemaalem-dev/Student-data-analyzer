@@ -13,12 +13,10 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Users\lemaa\AppData\Local\Programs\
 UPLOADS_FOLDER = 'uploads'
 REPORTS_FOLDER = 'reports'
 
-# Initialization of the queue
 image_queue = queue.Queue()
 
 student_feedbacks = {}
 
-# synchronize access to the feedback dictionary
 feedbacks_lock = threading.Lock()
 
 def extract_feedback_data(image_path):
@@ -107,11 +105,9 @@ def process_feedback_forms_producer_consumer():
     
     producer_pbar = tqdm(total=total_images, desc='Producteur')
     
-    # Initialization of producer threads
     producer_thread = threading.Thread(target=producer, args=(image_paths, producer_pbar))
     producer_thread.start()
     
-    # Initialization of consumer threads
     consumer_threads = []
     num_consumers = 4  
     for i in range(num_consumers):
@@ -119,10 +115,8 @@ def process_feedback_forms_producer_consumer():
         consumer_threads.append(t)
         t.start()
     
-    # Wait until the producer finished
     producer_thread.join()
     
-    # Wait until all consumers finish
     for t in consumer_threads:
         t.join()
     
